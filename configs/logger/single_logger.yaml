@@ -1,0 +1,20 @@
+- _target_: pytorch_lightning.loggers.TensorBoardLogger
+  save_dir: ${hydra:run.dir}/.tensorboard
+  name: ${hydra:job.name}
+  version: ${now:%Y%m%d_%H%M%S}
+
+- _target_: pytorch_lightning.loggers.CSVLogger
+  save_dir: ${hydra:run.dir}/.csv
+  name: ${hydra:job.name}
+  version: ${now:%Y%m%d_%H%M%S}
+
+- _target_: pytorch_lightning.loggers.WandbLogger
+  save_dir: ${hydra:run.dir}
+  project: my-research
+  name: ${hydra:runtime.choices.experiment}
+  id: ${now:%Y%m%d_%H%M%S}_single_run
+  resume: auto
+  settings:
+    _target_: wandb.Settings
+    init_timeout: 300
+    start_method: "thread"

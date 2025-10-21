@@ -1,0 +1,26 @@
+defaults:
+ - /trainer: default
+ - _self_
+
+callbacks:
+  - _target_: callbacks.nan_termination.TerminateOnNaN
+  
+  - _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val/clf_auprc"
+    patience: 30
+    mode: "max"
+    verbose: True
+
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${hydra:run.dir}/.checkpoints/max_auprc
+    monitor: "val/clf_auprc"
+    save_top_k: 1
+    mode: "max"
+    filename: "{epoch}-{val/clf_auprc:.2f}"
+
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${hydra:run.dir}/.checkpoints/max_cos-sim
+    monitor: "val/cl_cos-sim"
+    save_top_k: 1
+    mode: "max"
+    filename: "{epoch}-{val/cl_cos-sim:.2f}"

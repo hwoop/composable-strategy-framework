@@ -1,0 +1,27 @@
+defaults:
+  - /trainer: supervised/regression
+  - /datamodule: cmu-mosi/msa
+  - /model: sentiment-analysis/misa2020/base
+  - /strategy: sentiment-analysis/misa2020/base
+  - /optimizer: adamw_default
+  - _self_
+
+datamodule:
+  init_args:
+    batch_size: 64
+    seed: ${seed}
+    collate_fn_config:
+      _target_: utils.collator.MISA_Collator
+      use_bert: ${experiment.use_bert}
+
+trainer:
+  max_epochs: 500
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  gradient_clip_algorithm: 'norm'
+  logger: ${logger}
+
+optimizer:
+  lr: 1e-4
+
+use_bert: False  

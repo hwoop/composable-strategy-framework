@@ -1,0 +1,53 @@
+regression_loss:
+  module:
+    class_path: strategies.supervised.RegressionStrategy
+    init_args:
+      weight: 1.0
+  inputs:
+    logits: model_outputs.logits
+    labels: batch.labels
+    
+reconstruction_loss:
+  module:
+    class_path: strategies.custom.misa2020.ReconstructionStrategy 
+    init_args:
+      weight: 1.0 # config.recon_weight
+  inputs:
+    recon_t: model_outputs.recon_t
+    orig_t: model_outputs.projected_t
+    recon_v: model_outputs.recon_v
+    orig_v: model_outputs.projected_v
+    recon_a: model_outputs.recon_a
+    orig_a: model_outputs.projected_a
+
+difference_loss:
+  module:
+    class_path: strategies.custom.misa2020.DifferenceStrategy 
+    init_args:
+      weight: 0.3 # config.diff_weight
+  inputs:
+    shared_t: model_outputs.shared.t
+    shared_v: model_outputs.shared.v
+    shared_a: model_outputs.shared.a
+    private_t: model_outputs.private_t
+    private_v: model_outputs.private_v
+    private_a: model_outputs.private_a
+
+similarity_loss:
+  module:
+    class_path: strategies.custom.misa2020.CMDStrategy
+    init_args:
+      weight: 1.0 # config.sim_weight
+  inputs:
+    shared_t: model_outputs.shared.t
+    shared_v: model_outputs.shared.v
+    shared_a: model_outputs.shared.a
+
+regularization_loss:
+  module:
+    class_path: strategies.regularization.L2Strategy
+    init_args:
+      lambda_weight: 5e-5
+
+  inputs:
+    logits: model_outputs.logits

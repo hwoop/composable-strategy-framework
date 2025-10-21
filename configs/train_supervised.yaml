@@ -1,0 +1,23 @@
+defaults:
+  # - experiment: sentiment-analysis/tridira2025/base_regression
+  # - experiment: sentiment-analysis/misa2020/base+bert
+  # - experiment: in-hospital-mortality/lyu2023/base+contrastive
+  - experiment: in-hospital-mortality/proposal/base
+  - logger: single_logger
+  - _self_
+
+seed: null
+
+pl_module:
+  class_path: pl_modules.experiment_module.ExperimentModule
+  init_args:
+    model_config: ${experiment.model}
+    optimizer_config: ${experiment.optimizer}
+    strategy_config: ${experiment.strategy}
+
+datamodule: ${experiment.datamodule}
+trainer: ${experiment.trainer}
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}

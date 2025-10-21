@@ -1,0 +1,29 @@
+class_path: datamodules.UniversalDataModule
+init_args:
+  train_dataset_config:
+    class_path: dataset.LazyPklDataset
+    init_args: { data_path: ./resources/dataset/cmu-mosi/cmu-mosi_msa_train.pkl }
+
+  valid_dataset_config:
+    class_path: dataset.LazyPklDataset
+    init_args: { data_path: ./resources/dataset/cmu-mosi/cmu-mosi_msa_valid.pkl }
+
+  test_dataset_config:
+    class_path: dataset.LazyPklDataset
+    init_args: { data_path: ./resources/dataset/cmu-mosi/cmu-mosi_msa_test.pkl }
+
+  extra_data_config:
+    word2id:
+      class_path: dataset.LazyPklDataset
+      init_args: { data_path: ./resources/dataset/cmu-mosi/cmu-mosi_msa_word2id.pkl }
+
+    id2word:
+      class_path: dataset.LazyPklDataset
+      init_args: { data_path: ./resources/dataset/cmu-mosi/cmu-mosi_msa_id2word.pkl }
+
+  collate_fn_config: null
+
+  batch_size: 128
+  train_workers: 0
+  other_workers: 0
+  

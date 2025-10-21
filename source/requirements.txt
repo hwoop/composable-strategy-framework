@@ -1,0 +1,9 @@
+torch
+pytorch-lightning
+hydra-core
+omegaconf
+transformers
+torchmetrics
+wandb
+numpy
+pandas

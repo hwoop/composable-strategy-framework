@@ -1,0 +1,21 @@
+- _target_: pytorch_lightning.loggers.TensorBoardLogger
+  save_dir: ${hydra:run.dir}/.tensorboard
+  name: ""
+  version: "job_${hydra:job.num}"
+
+- _target_: pytorch_lightning.loggers.CSVLogger
+  save_dir: ${hydra:run.dir}/.csv
+  name: ${hydra:job.name}
+  version: ${now:%Y%m%d_%H%M%S}
+
+- _target_: pytorch_lightning.loggers.WandbLogger
+  save_dir: ${hydra:run.dir}
+  project: my-research
+  group: ${hydra:sweep.subdir}
+  name: ${hydra:job.override_dirname}
+  id: ${now:%Y%m%d_%H%M%S}_job_${hydra:job.num}
+  resume: auto
+  settings:
+    _target_: wandb.Settings
+    init_timeout: 300
+    start_method: "thread"  

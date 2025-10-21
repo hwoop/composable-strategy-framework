@@ -1,0 +1,142 @@
+class_path: models.GraphModel
+init_args:
+  inputs: ['text', 'audio', 'vision', 'lengths']
+  outputs: 
+   - 'logits'
+   - 'recon_t'
+   - 'recon_v'
+   - 'recon_a'
+   - 'projected_t'
+   - 'projected_v'
+   - 'projected_a'
+  #  - 'shared.t'
+  #  - 'shared.v'
+  #  - 'shared.a'
+   - 'shared'
+   - 'private_t'
+   - 'private_v'
+   - 'private_a'
+
+  graph_cfg:
+    embed_t:
+      module: { class_path: models.components.recurrent.Embed, init_args: { num_embeddings: 2729, embedding_dim: 300 } } # 2729: word2id의 개수
+      inputs: ['text']
+
+    encoded_t:
+      module: { class_path: models.custom.misa2020.LSTMEncoder, init_args: { input_size: 300, hidden_size: 150, num_layers: 2, dropout: 0.5 } }
+      inputs: ['embed_t', 'lengths']
+    encoded_v:
+      module: { class_path: models.custom.misa2020.LSTMEncoder, init_args: { input_size: 47, hidden_size: 23, num_layers: 2, dropout: 0.5 } }
+      inputs: ['vision', 'lengths']
+    encoded_a:
+      module: { class_path: models.custom.misa2020.LSTMEncoder, init_args: { input_size: 74, hidden_size: 37, num_layers: 2, dropout: 0.5 } }
+      inputs: ['audio', 'lengths']
+
+    projected_t_mlp:
+      module:
+        class_path: models.components.feed_forward.MLP
+        init_args: { input_dim: 600, output_dim: 128, output_activation_cfg: { class_path: models.components.activation.ReLU } }
+      inputs: ['encoded_t']
+    projected_t:
+      module: { class_path: models.components.normalization.LayerNorm, init_args: { normalized_shape: 128 } }
+      inputs: ['projected_t_mlp']
+
+    projected_v_mlp:
+      module:
+        class_path: models.components.feed_forward.MLP
+        init_args: { input_dim: 92, output_dim: 128, output_activation_cfg: { class_path: models.components.activation.ReLU } } # 18*2*2
+      inputs: ['encoded_v']
+    projected_v:
+      module: { class_path: models.components.normalization.LayerNorm, init_args: { normalized_shape: 128 } }
+      inputs: ['projected_v_mlp']
+
+    projected_a_mlp:
+      module:
+        class_path: models.components.feed_forward.MLP
+        init_args: { input_dim: 148, output_dim: 128, output_activation_cfg: { class_path: models.components.activation.ReLU } } # 37*2*2
+      inputs: ['encoded_a']
+    projected_a:
+      module: { class_path: models.components.normalization.LayerNorm, init_args: { normalized_shape: 128 } }
+      inputs: ['projected_a_mlp']
+
+    # 3. Shared & Private Encoder (Linear -> Sigmoid)
+    shared:
+      module: 
+        class_path: models.components.feed_forward.MLP
+        init_args: { input_dim: 128, output_dim: 128, output_activation_cfg: { class_path: models.components.activation.Sigmoid } }
+      inputs_for:
+        t: ['projected_t']
+        v: ['projected_v']
+        a: ['projected_a']
+
+    private_t:
+      module: 
+        class_path: models.components.feed_forward.MLP
+        init_args: { input_dim: 128, output_dim: 128, output_activation_cfg: { class_path: models.components.activation.Sigmoid } }
+      inputs: ['projected_t']
+    private_v:
+      module: 
+        class_path: models.components.feed_forward.MLP
+        init_args: { input_dim: 128, output_dim: 128, output_activation_cfg: { class_path: models.components.activation.Sigmoid } }
+      inputs: ['projected_v']
+    private_a:
+      module: 
+        class_path: models.components.feed_forward.MLP
+        init_args: { input_dim: 128, output_dim: 128, output_activation_cfg: { class_path: models.components.activation.Sigmoid } } 
+      inputs: ['projected_a']
+
+    # 4. Reconstruction
+    _input_recon_t:
+      module: { class_path: models.components.ops.Add }
+      inputs: ['shared.t', 'private_t']
+    recon_t:
+      module: { class_path: models.components.feed_forward.MLP, init_args: { input_dim: 128, output_dim: 128 } }
+      inputs: ['_input_recon_t']
+
+    _input_recon_v:
+      module: { class_path: models.components.ops.Add }
+      inputs: ['shared.v', 'private_v']
+    recon_v:
+      module: { class_path: models.components.feed_forward.MLP, init_args: { input_dim: 128, output_dim: 128 } }
+      inputs: ['_input_recon_v']
+
+    _input_recon_a:
+      module: { class_path: models.components.ops.Add }
+      inputs: ['shared.a', 'private_a']
+    recon_a:
+      module: { class_path: models.components.feed_forward.MLP, init_args: { input_dim: 128, output_dim: 128 } }
+      inputs: ['_input_recon_a']
+
+    # 5. Fusion - (Batch, 6, Dim) 형태로 stack하여 1-layer TransformerEncoder에 입력
+    _input_fused_features:
+      module: { class_path: models.components.ops.Stack, init_args: { dim: 1 } }
+      inputs: ['private_t', 'private_v', 'private_a', 'shared.t', 'shared.v', 'shared.a']
+    fused_features:
+      module:
+        class_path: models.components.transformer.TransformerEncoder
+        init_args:
+          input_dim: 128
+          dim_feedforward: 256 
+          num_heads: 2 
+          num_layers: 1
+          dropout: 0.5
+          batch_first: True
+      inputs: ['_input_fused_features']
+    
+    # Transformer 출력 (Batch, 6, 128)을 Concat하여 (Batch, 768)로 변환
+    final_representation:
+      module: { class_path: torch.nn.Flatten, init_args: { start_dim: 1 } }
+      inputs: 'fused_features'
+
+    # 6. Prediction Head - Linear(hidden*6 -> hidden*3) -> Dropout -> Activation -> Linear(hidden*3 -> num_classes)
+    logits:
+      module: 
+        class_path: models.components.feed_forward.MLP
+        init_args: 
+          input_dim: 768
+          hidden_dims: [384]
+          output_dim: 1
+          activation_cfg: { class_path: torch.nn.ReLU }
+          use_dropout: True
+          dropout_prob: 0.5
+      inputs: 'final_representation'      

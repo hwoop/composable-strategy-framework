@@ -1,0 +1,26 @@
+defaults:
+ - default
+ - _self_
+
+callbacks:
+  - _target_: callbacks.TerminateOnNaN
+  
+  - _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val/rgr_corr"
+    patience: 20
+    mode: "max"
+    verbose: True
+
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${hydra:run.dir}/.checkpoints/max_corr
+    monitor: "val/rgr_corr"
+    save_top_k: 3
+    mode: "max"
+    filename: "{epoch}-{val/rgr_corr:.2f}"
+    
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${hydra:run.dir}/.checkpoints/min_mae
+    monitor: "val/rgr_mae"
+    save_top_k: 3
+    mode: "min"
+    filename: "{epoch}-{val/rgr_mae:.2f}"

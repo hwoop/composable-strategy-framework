@@ -1,0 +1,19 @@
+defaults:
+ - /trainer: default
+ - _self_
+
+callbacks:
+  - _target_: callbacks.nan_termination.TerminateOnNaN
+  
+  - _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val_total_cl-cos"
+    patience: 10
+    mode: "max"
+    verbose: True
+
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${hydra:run.dir}/.checkpoints/max_cos-sim
+    monitor: "val_total_cl-cos"
+    save_top_k: 3
+    mode: "max"
+    filename: "{epoch}-{val_total_cl-cos:.2f}"
